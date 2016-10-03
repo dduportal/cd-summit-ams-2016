@@ -2,7 +2,7 @@ version: '2'
 
 services:
   front:
-    build: ./front/
+    build: ./docker-images/front/
     restart: unless-stopped
     ports:
       - "5500:5500"
@@ -12,7 +12,7 @@ services:
       - artifacts
 
   jenkins:
-    build: ./jenkins/
+    build: ./docker-images/jenkins/
     restart: unless-stopped
     expose:
       - "8080"
@@ -27,7 +27,7 @@ services:
       - "${EXTERNAL_DOMAIN}:172.17.0.1"
 
   gitserver:
-    build: ./gitserver/
+    build: ./docker-images/gitserver/
     restart: unless-stopped
     expose:
       - "3000"
@@ -50,18 +50,18 @@ services:
       - /var/run/docker.sock:/docker.sock
 
   artifacts:
-    build: ./artifacts/
+    build: ./docker-images/artifacts/
     restart: unless-stopped
     expose:
       - "8081"
     extra_hosts:
       - "${EXTERNAL_DOMAIN}:172.17.0.1"
     volumes:
-      - ../local-m2-cache:/local-m2-cache # Auto Load M2 cache in Artifactory after startup
+      - ./docker-images/artifacts/local-m2-cache:/local-m2-cache # Auto Load M2 cache in Artifactory after startup
 
   ssh-agent:
     build:
-      context: ./jenkins-ssh-agent
+      context: ./docker-images/jenkins-ssh-agent
       args:
         - HOME=${AGENT_JENKINS_HOME}
     restart: unless-stopped

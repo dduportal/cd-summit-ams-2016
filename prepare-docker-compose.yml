@@ -11,7 +11,7 @@ services:
         && mvn dependency:go-offline \
         && mvn clean install)"
     volumes:
-      - ./commons/artifacts/local-m2-cache:/root/.m2/repository
+      - ./docker-images/artifacts/local-m2-cache:/root/.m2/repository
 
   jenkins_home_prep:
     image: openjdk:8-jre-alpine
