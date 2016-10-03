@@ -1,0 +1,25 @@
+version: '2'
+
+services:
+  mvn-caching:
+    image: maven:3.3-jdk-8-alpine
+    command: |
+      sh -c "apk add --update git \
+      && rm -rf dw-demo-app \
+      && git clone https://github.com/dduportal/dw-demo-app \
+      && ( cd dw-demo-app \
+        && mvn dependency:go-offline \
+        && mvn clean install)"
+    volumes:
+      - ./commons/artifacts/local-m2-cache:/root/.m2/repository
+
+  jenkins_home_prep:
+    image: openjdk:8-jre-alpine
+    command: sh -c "chmod -R 750 /var/jenkins_home ${AGENT_JENKINS_HOME} && chown -R 1000:1000 /var/jenkins_home ${AGENT_JENKINS_HOME}"
+    volumes:
+      - /var/jenkins_home:/var/jenkins_home
+      - ${AGENT_JENKINS_HOME}:${AGENT_JENKINS_HOME}
+
+  demoapp-preload:
+    image: openjdk:8-jre-alpine
+    command: "true"

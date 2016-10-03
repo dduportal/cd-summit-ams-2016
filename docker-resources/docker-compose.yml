@@ -1,0 +1,81 @@
+version: '2'
+
+services:
+  front:
+    build: ./front/
+    restart: unless-stopped
+    ports:
+      - "5500:5500"
+    depends_on:
+      - jenkins
+      - gitserver
+      - artifacts
+
+  jenkins:
+    build: ./jenkins/
+    restart: unless-stopped
+    expose:
+      - "8080"
+      - "50000"
+    environment:
+      - JENKINS_OPTS=--httpPort=8080 --prefix=/jenkins
+      - JENKINS_SLAVE_AGENT_PORT=50000
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2048m
+      - DOCKER_HOST=tcp://docker-service:2375
+      - PUBLIC_IP=${EXTERNAL_DOMAIN}
+    extra_hosts:
+      - "${EXTERNAL_DOMAIN}:172.17.0.1"
+
+  gitserver:
+    build: ./gitserver/
+    restart: unless-stopped
+    expose:
+      - "3000"
+    extra_hosts:
+      - "${EXTERNAL_DOMAIN}:172.17.0.1"
+    environment:
+      - EXTERNAL_DOMAIN=${EXTERNAL_DOMAIN}
+      - EXTERNAL_URL=http://${EXTERNAL_DOMAIN}:5500/gitserver
+      - FIRST_USER=butler
+      - FIRST_REPO_NAME=jw-training
+      - SOURCE_REPO_TO_MIRROR=https://github.com/dduportal/dw-demo-app
+
+  docker-service:
+    image: verb/socat:alpine
+    restart: unless-stopped
+    command: tcp-listen:2375,reuseaddr,fork unix:/docker.sock
+    expose:
+      - "2375"
+    volumes:
+      - /var/run/docker.sock:/docker.sock
+
+  artifacts:
+    build: ./artifacts/
+    restart: unless-stopped
+    expose:
+      - "8081"
+    extra_hosts:
+      - "${EXTERNAL_DOMAIN}:172.17.0.1"
+    volumes:
+      - ../local-m2-cache:/local-m2-cache # Auto Load M2 cache in Artifactory after startup
+
+  ssh-agent:
+    build:
+      context: ./jenkins-ssh-agent
+      args:
+        - HOME=${AGENT_JENKINS_HOME}
+    restart: unless-stopped
+    environment:
+      - JENKINS_SLAVE_SSH_PUBKEY=ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5mPpsqcGfQwnC4ROpFi6+sbiJ2QFS7e9hwxVv4Ntu8pnYzq5vkydp33NWtEZbrzRDX7rg+v4FDSB2KvqjOovf7k5aHfUa8ictZRqW6LiirKMVanrJRF7YidljOfgXROif0G9g2zEqI99GVGDDIwzlRrSoHsq1OMiayzG589h8ov49i3LEWEsccVDxQICfQKKedUSl9JcqUAj6vhwuGSwxlWbS+SSPJXE58s1XI2E8y5I7NgoCapd+3o4RAasIdimQil4ub+8Meo+I21TNC0cGJBfzI7PdTNSL8iCqhno+PrGaE9jNfRmFpotz6aoV5hnxxG2veqt2HI+2YLGhceIaALMhBtiGHm0o9gNB60KCXFBAGzd6Vj2Y1bttAEVCbmieUBBWOtrrrZysNf0xipw9VeRC09TEwEcjh9n4Seogc5JyANu1Z85ny32KhjiYx1VUFwYeUlKiHimUMz8oK9kPOYUZSL5XbDRYvD0Xdu9eh/ipINid7OY1S/VFqLXpBepDCB3sAJhx6qpbmPtn77LgLCWip10QvmJR6+sP3tUCqSPgV095c3AdBvm/Xhy1iah0H3uNXfV4ou/0QzvCN+CZkoCHlCV4USMtiLscEKzOC257PePcgWD0f4VeBOOIAzC2AsD/0lgG4rw6AAWiHuCx807VzYNMwR4jQo81icXCTw==
+      - PUBLIC_IP=${EXTERNAL_DOMAIN}
+    extra_hosts:
+      - "${EXTERNAL_DOMAIN}:172.17.0.1"
+    volumes:
+      - ${AGENT_JENKINS_HOME}:${AGENT_JENKINS_HOME}:rw
+      - /usr/bin/docker:/usr/bin/docker
+
+  local-docker-registry:
+    image: registry:2
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
